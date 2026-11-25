@@ -1,0 +1,19 @@
+{
+  "defaultAction": "allow",
+  "sessionLimits": {
+    "maxCallsPerSession": 100,
+    "maxX402AtomicUsdcPerSession": 1000000
+  },
+  "rules": [
+    {
+      "pattern": "*:delete_*",
+      "action": "deny"
+    },
+    {
+      "pattern": "finance:pay_x402*",
+      "action": "allow",
+      "maxCallsPerSession": 5,
+      "estimatedX402AtomicUsdc": 10000
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.apexhive-hq/slimmcp-proxy",
+  "title": "slimmcp-proxy",
+  "description": "Progressive-disclosure Meta-MCP proxy cutting tools/list context by 97.87% via BM25 discovery.",
+  "repository": {
+    "url": "https://github.com/apexhive-hq/slimmcp-proxy",
+    "source": "github"
+  },
+  "version": "1.0.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "slimmcp-proxy",
+      "version": "1.0.1",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

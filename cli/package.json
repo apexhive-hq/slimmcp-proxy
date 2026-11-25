@@ -1,0 +1,41 @@
+{
+  "name": "slimmcp-proxy",
+  "version": "1.0.1",
+  "mcpName": "io.github.apexhive-hq/slimmcp-proxy",
+  "description": "Progressive-disclosure Meta-MCP proxy reducing MCP tool-schema context bloat by 85-95%, with local secret redaction and Pro Base-USDC guardrails.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/apexhive-hq/slimmcp-proxy.git"
+  },
+  "homepage": "https://slimmcp-proxy-store.apexhive-hq.workers.dev",
+  "type": "module",
+  "bin": {
+    "slimmcp-proxy": "dist/src/cli.js"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "slimmcp.config.example.json",
+    "slimmcp.policy.example.json"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm run build && node --test dist/tests/*.test.js",
+    "benchmark": "pnpm run build && node dist/src/cli.js benchmark --config slimmcp.config.example.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.3"
+  }
+}

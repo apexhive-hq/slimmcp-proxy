@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>slimmcp-proxy — Cut MCP Context Tax by 85–95% | ApexHive Labs</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-row">
+      <div class="brand">
+        <span class="brand-badge">ApexHive Labs</span>
+        <span class="brand-name">slimmcp-proxy <small>v1.0.1</small></span>
+      </div>
+      <nav class="nav-links">
+        <a href="#benchmark">Benchmark</a>
+        <a href="#playground">Playground</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#checkout">Activate Pro</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <p class="eyebrow">100% FREE MIT OPEN-SOURCE CORE &bull; NODE &ge; 24 &bull; CRYPTO-NATIVE LICENSING</p>
+      <h1>Stop Burning 40% of Your LLM Context on Idle MCP Schemas.</h1>
+      <p class="subtitle">
+        <strong>Core CLI is 100% Free MIT Open Source</strong>—cutting initial context overhead by <strong>97.87%</strong> across <code>60</code> upstream tools with deterministic BM25 progressive disclosure and secret redaction. <strong>Indie Pro / Supporter (5 USDC Batch 1)</strong> and <strong>Team (49 USDC)</strong> unlock commercial multi-seat policy bundles &amp; support open-source maintenance.
+      </p>
+      <div class="code-box">
+        <code>git clone https://github.com/apexhive-hq/slimmcp-proxy.git &amp;&amp; cd slimmcp-proxy/cli &amp;&amp; pnpm install --ignore-scripts &amp;&amp; pnpm run build &amp;&amp; node dist/src/cli.js serve --config slimmcp.config.example.json</code>
+      </div>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#checkout" id="hero-cta">Indie Pro / Supporter — 5 USDC <s>19 USDC</s></a>
+        <a class="btn btn-secondary" href="#benchmark">View Real Benchmarks</a>
+      </div>
+    </section>
+
+    <section id="benchmark" class="section">
+      <h2>How Progressive Disclosure Works</h2>
+      <div class="grid-3">
+        <article class="card">
+          <h3>1. discover_tools</h3>
+          <p>Deterministic local BM25 search returns compact tool names, 1-line summaries, and required args—no bloated JSON schemas.</p>
+        </article>
+        <article class="card">
+          <h3>2. inspect_tool_schema</h3>
+          <p>Lazy-loads the full <code>inputSchema</code> for only the single tool your coding agent chooses to call.</p>
+        </article>
+        <article class="card">
+          <h3>3. invoke_tool</h3>
+          <p>Scrubs leaked keys/JWTs locally and enforces Pro RBAC allow/deny rules and per-session <code>x402</code> spend caps.</p>
+        </article>
+      </div>
+
+      <div class="benchmark-panel">
+        <div class="bench-stat">
+          <span class="bench-label">60 Upstream Tools (Raw)</span>
+          <span class="bench-value">~15,047 tokens</span>
+        </div>
+        <div class="bench-arrow">&rarr;</div>
+        <div class="bench-stat">
+          <span class="bench-label">3 SlimMCP Meta-Tools</span>
+          <span class="bench-value accent">~320 tokens</span>
+        </div>
+        <div class="bench-stat">
+          <span class="bench-label">Initial Context Saved</span>
+          <span class="bench-value accent">97.87%</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="playground" class="section">
+      <h2>Zero-Install Live MCP Schema Playground</h2>
+      <div class="card">
+        <p class="muted">Paste any MCP <code>tools/list</code> JSON payload (or load a 60-tool sample) to measure exact UTF-8 byte &amp; token savings via <code>POST /api/playground/compress</code> (0 setup required). Autonomous agents can also call <code>POST /api/x402/compress</code> via Base USDC <code>x402</code> (<code>5000</code> atomic / <code>$0.005 USDC</code> with <code>X-Payment</code>, <code>X-Payment-Signature</code>, and <code>X-Payment-Address</code>).</p>
+        <div class="field-group">
+          <label for="playground-input">Upstream MCP <code>tools/list</code> JSON</label>
+          <textarea id="playground-input" rows="7" placeholder='{"tools":[{"name":"search_docs","description":"Search workspace documentation","inputSchema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}]}'></textarea>
+        </div>
+        <div class="btn-row">
+          <button type="button" id="load-sample-btn" class="btn btn-secondary">Load 60-Tool Sample</button>
+          <button type="button" id="compress-btn" class="btn btn-primary">Compress &amp; Measure</button>
+        </div>
+        <div id="playground-error" class="error-box" hidden></div>
+        <div id="playground-result" class="success-box" hidden>
+          <p id="playground-summary"></p>
+          <details>
+            <summary>Compressed 3 Meta-Tools + Compact Tool Index</summary>
+            <pre id="playground-output"></pre>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing" class="section">
+      <h2>Simple Crypto-Only Pricing (Zero Subscriptions)</h2>
+      <div class="grid-3">
+        <article class="card">
+          <h3>Open-Core Free (MIT)</h3>
+          <p class="price">0 USDC <span>forever</span></p>
+          <ul class="feat-list">
+            <li>100% public MIT open-source CLI</li>
+            <li>Unlimited upstream stdio MCP servers</li>
+            <li>BM25 progressive disclosure (97.87% savings)</li>
+            <li>Local secret redaction filter</li>
+          </ul>
+        </article>
+        <article class="card card-featured">
+          <h3>Indie Pro / Supporter</h3>
+          <p id="batch-badge" class="batch-badge">Founding Batch</p>
+          <p class="price"><s class="price-old">19 USDC</s> <span id="indie-price">5 USDC</span> <span>Founding Batch &bull; lifetime</span></p>
+          <ul class="feat-list">
+            <li>Everything in Open-Core Free</li>
+            <li>Supports open-source maintenance</li>
+            <li><code>slimmcp.policy.json</code> RBAC &amp; <code>x402</code> caps</li>
+            <li>Offline Ed25519 license + SQLite stats</li>
+          </ul>
+        </article>
+        <article class="card">
+          <h3>Pro Team (5 Seats)</h3>
+          <p class="price">49 USDC <span>lifetime</span></p>
+          <ul class="feat-list">
+            <li>Everything in Indie Pro</li>
+            <li>5-seat commercial license &amp; team policy bundles</li>
+            <li>Multi-workspace CI &amp; audit metrics</li>
+            <li>Priority open-source support</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="checkout" class="section">
+      <h2>Non-Custodial Base USDC Checkout</h2>
+
+      <div id="self-custody-warning" class="warning-banner" role="alert">
+        <strong>SELF-CUSTODY WALLET REQUIRED:</strong> Send Base Mainnet USDC <strong>ONLY</strong> from a wallet you control (MetaMask, Rabby, Coinbase Wallet). <strong>NEVER send directly from a centralized exchange (CEX) withdrawal</strong>—exchange hot wallets cannot sign the EIP-191 ownership proof required below. Sent from a CEX by mistake or need manual recovery? Email <strong>apexhive.hq@proton.me</strong> with your <code>txHash</code>.
+      </div>
+
+      <div class="checkout-grid">
+        <div class="card">
+          <h3>Step 1: Send Base USDC</h3>
+          <div class="field-group">
+            <label for="tier-select">Select License Tier</label>
+            <select id="tier-select">
+              <option id="tier-indie-label" value="indie">Pro Indie — 5 USDC Founding Batch (reg. 19 USDC)</option>
+              <option value="team">Pro Team — 49 USDC (Base Mainnet)</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Primary Receive Address (Base USDC &bull; Chain ID 8453)</label>
+            <div class="copy-row">
+              <code id="pay-to-address">0x32eceaC45DBED9E555dAb80346aBd4Ab9C676206</code>
+              <button type="button" id="copy-address-btn" class="btn btn-small">Copy</button>
+            </div>
+            <small class="muted">USDC Contract: <code id="usdc-contract">0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913</code></small>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" id="wallet-pay-btn" class="btn btn-primary btn-full" hidden>
+              Pay 5 USDC with Wallet
+            </button>
+          </div>
+          <p id="wallet-pay-status" class="muted" hidden></p>
+
+          <details class="optional-rails">
+            <summary>Optional Reference Rails (Solana / BTC / TRON — Manual Fulfillment via apexhive.hq@proton.me)</summary>
+            <ul>
+              <li>Solana USDC: <code id="sol-address">4UyTxvrcqtYEsm5LQuiD5ofEJ4bMk6XJqv6G4St3GC9F</code></li>
+              <li>Bitcoin SegWit: <code id="btc-address">bc1q2j0yqtn2cyslurxvx050vpgnamdqhxtegfs789</code></li>
+              <li>TRON TRC-20: <code id="tron-address">TFVqcqQuGKsjwb6tFnhLyL3UudPdA6VnnN</code></li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="card">
+          <h3>Step 2: Prove Wallet &amp; Claim Token</h3>
+          <form id="verify-form" novalidate>
+            <div class="field-group">
+              <label for="tx-hash-input">Base Transaction Hash (<code>txHash</code>)</label>
+              <input id="tx-hash-input" type="text" placeholder="0x..." autocomplete="off" />
+            </div>
+
+            <div class="btn-row">
+              <button type="button" id="challenge-btn" class="btn btn-secondary">
+                1. Generate EIP-191 Challenge
+              </button>
+              <button type="button" id="wallet-sign-btn" class="btn btn-small" hidden>
+                Sign via Wallet
+              </button>
+            </div>
+
+            <div id="challenge-box" class="challenge-box" hidden>
+              <label for="challenge-text">Challenge Message (expires in 300s)</label>
+              <textarea id="challenge-text" rows="5" readonly></textarea>
+              <small class="muted">Nonce: <code id="challenge-nonce"></code></small>
+            </div>
+
+            <div class="field-group">
+              <label for="signature-input">EIP-191 Signature (<code>personal_sign</code>)</label>
+              <input id="signature-input" type="text" placeholder="0x..." autocomplete="off" />
+            </div>
+
+            <button type="submit" id="verify-btn" class="btn btn-primary btn-full">
+              2. Verify Payment &amp; Issue License
+            </button>
+          </form>
+
+          <div id="status-error" class="error-box" hidden></div>
+
+          <div id="license-result" class="success-box" hidden>
+            <h4>License Activated &amp; Signed!</h4>
+            <p>Run this offline command in your terminal:</p>
+            <pre id="activation-cmd"></pre>
+            <details>
+              <summary>Raw Ed25519 License Token</summary>
+              <code id="raw-token" class="token-break"></code>
+            </details>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <span>&copy; 2026 ApexHive Labs &bull; Support: <a href="mailto:apexhive.hq@proton.me">apexhive.hq@proton.me</a></span>
+      <a href="https://github.com/apexhive-hq/slimmcp-proxy" rel="noopener noreferrer">github.com/apexhive-hq/slimmcp-proxy</a>
+    </div>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
