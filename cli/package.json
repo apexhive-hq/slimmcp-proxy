@@ -22,13 +22,14 @@
     "slimmcp.policy.example.json"
   ],
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "build:prod": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "pnpm run build && node --test dist/tests/*.test.js",
-    "benchmark": "pnpm run build && node dist/src/cli.js benchmark --config slimmcp.config.example.json"
+    "benchmark": "pnpm run build && node dist/src/cli.js benchmark --config slimmcp.benchmark.config.json"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",

@@ -1,0 +1,24 @@
+{
+  "servers": [
+    {
+      "id": "demo-devtools",
+      "command": "node",
+      "args": ["./dist/tests/fixtures/mock-mcp-server.js", "--server=devtools", "--count=20"]
+    },
+    {
+      "id": "demo-cloud",
+      "command": "node",
+      "args": ["./dist/tests/fixtures/mock-mcp-server.js", "--server=cloud", "--count=20"]
+    },
+    {
+      "id": "demo-finance",
+      "command": "node",
+      "args": ["./dist/tests/fixtures/mock-mcp-server.js", "--server=finance", "--count=20"]
+    }
+  ],
+  "redaction": {
+    "enabled": true,
+    "redactInputs": true,
+    "redactOutputs": true
+  }
+}

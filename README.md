@@ -1,8 +1,8 @@
-# `slimmcp-proxy` — Progressive-Disclosure Meta-MCP Proxy
+# `slimmcp-proxy` (`v1.0.2`) — Progressive-Disclosure Meta-MCP Proxy
 
 [![slimmcp-proxy MCP server](https://glama.ai/mcp/servers/apexhive-hq/slimmcp-proxy/badge)](https://glama.ai/mcp/servers/apexhive-hq/slimmcp-proxy)
 
-> **100% Free & Open Source (MIT)** Meta-MCP proxy (`Node.js >= 24`) that replaces bloated upstream `tools/list` definitions with **3 lightweight meta-tools** (`97.86%` initial schema reduction: `60,185 -> 1,286` bytes across 60 tools; **`~95.1%` net 1-turn savings** including `discover_tools` + `inspect_tool_schema`), supporting **`stdio`**, **Streamable-HTTP**, and **SSE** upstreams with built-in secret redaction and free RBAC policy guardrails.
+> **100% Free & Open Source (MIT)** Meta-MCP proxy (`Node.js >= 22.13.0` — Node 22 LTS & Node 24 LTS) that replaces bloated upstream `tools/list` definitions with **3 lightweight meta-tools** (`97.86%` initial schema reduction: `60,185 -> 1,286` bytes / `15,047 -> 322` tokens across 60 tools; **`95.10%` net 1-turn savings** including `discover_tools` + `inspect_tool_schema`), supporting **`stdio`**, **Streamable-HTTP**, and **SSE** upstreams with fail-closed secret redaction, strict deny-overrides RBAC policy guardrails, and isolated child process environments.
 
 - **Official MCP Registry:** `io.github.apexhive-hq/slimmcp-proxy`
 - **Glama MCP Directory:** https://glama.ai/mcp/servers/apexhive-hq/slimmcp-proxy
@@ -19,15 +19,15 @@
                                   |  stdio (JSON-RPC 2.0)
                                   v
 +-------------------------------------------------------------------+
-|  slimmcp-proxy (cli/src/server.ts & upstream.ts)                  |
+|  slimmcp-proxy v1.0.2 (cli/src/server.ts & upstream.ts)           |
 |  1. discover_tools(query, server?, limit?) -> Pure-TS BM25 index  |
 |  2. inspect_tool_schema(server, tool)      -> Lazy 1-tool schema  |
 |  3. invoke_tool(server, tool, arguments)   -> Redactor + Policy   |
-|     - Secret Redactor (AWS/GitHub/Stripe/OpenAI/Slack/JWT/PEM)    |
-|     - PolicyGuard (100% Free MIT RBAC + call/spend caps)          |
-|     - MetricsLedger (Node v24 built-in node:sqlite)               |
+|     - Fail-Closed Secret Redactor (keys + values, depth <= 24)    |
+|     - PolicyGuard (MIT RBAC deny-overrides + call/spend caps)     |
+|     - MetricsLedger (Node >=22.13 built-in node:sqlite)           |
 +---------------------------------+---------------------------------+
-                                  |  stdio OR Streamable-HTTP / SSE
+                                  |  stdio (isolated env) OR HTTP/SSE
                                   v
 +-------------------------------------------------------------------+
 |  Upstream MCP Servers (local processes or remote HTTP/SSE URLs)   |
@@ -36,19 +36,27 @@
 
 ---
 
-## Verified Local Benchmark (Initial + 1-Turn Reality)
+## Verified Local Benchmark (Initial Schema vs Multi-Turn Net Savings)
 
-Measured with `node dist/src/cli.js benchmark --config slimmcp.config.example.json` against 3 real `stdio` child MCP servers (`60` tools total):
+Measured with `pnpm run benchmark` (`node dist/src/cli.js benchmark --config slimmcp.benchmark.config.json`) against 3 real `stdio` child MCP servers (`60` tools total; heuristic `~4` UTF-8 bytes/token alongside exact UTF-8 byte counts):
 
-| Metric | Raw Upstream `tools/list` | `slimmcp-proxy` Meta-Tools | Reduction |
+| Metric | Raw Upstream `tools/list` | `slimmcp-proxy` Meta-Tools | Reduction / Net Cost |
 |---|---|---|---|
 | **Exposed Tools** | `60` tools | `3` meta-tools | `95.0%` fewer exposed definitions |
-| **Initial `tools/list` Payload** | `60,185` bytes (`~15,047` tok) | `1,286` bytes (`~322` tok) | **`97.86%` initial schema reduction** |
-| **Net 1-Turn Lookup Cost** *(meta + 5 BM25 matches + 1 loaded schema)* | `~15,047` tokens | **`~737` tokens** | **`~95.1%` net 1-turn savings** |
+| **Initial `tools/list` Payload** | `60,185` bytes (`~15,047` tok) | `1,286` bytes (`~322` tok) | **`97.86%` initial schema reduction** (`14,725` tokens saved) |
+| **Net 1-Turn Lookup Cost** *(meta + 5 BM25 matches + 1 inspected schema)* | `~15,047` tokens | **`~737` tokens** (`322 + 232 + 183`) | **`95.10%` net 1-turn savings** (`14,310` net tokens saved) |
+
+### How Initial vs Multi-Turn Net Savings Work
+
+- **Initial schema reduction (`97.86%`):** Instead of injecting all `60` upstream schemas (`60,185` bytes / `~15,047` tokens) into the prompt on turn 0, the client only loads the `3` meta-tools (`1,286` bytes / `~322` tokens).
+- **1-turn net savings (`95.10%`):** Discovering and invoking a tool adds one `discover_tools` match list (`927` bytes / `~232` tokens for 5 matches) and one `inspect_tool_schema` payload (`~183` tokens), totaling `~737` tokens instead of `~15,047` tokens.
+- **Multi-turn net savings:** Across a multi-turn session where only `k` distinct tools are actually needed (`k << 60`), each newly inspected tool adds only its single schema (`~183` tokens) rather than paying the full `~15,047`-token upfront schema tax across every conversation or prompt-cache miss.
 
 ---
 
-## Quickstart (`Node.js >= 24.0.0`, Zero Docker)
+## Quickstart (`Node.js >= 22.13.0`, Node 22 LTS / Node 24 LTS)
+
+> **Why `>= 22.13.0`?** `slimmcp-proxy` uses Node's built-in unflagged `node:sqlite` (`DatabaseSync`, unflagged since Node 22.13.0) with zero native C++ addons. Node 20 LTS does not include `node:sqlite`.
 
 ### Instant Run via npm (`npx`)
 
@@ -66,7 +74,7 @@ pnpm install --ignore-scripts
 pnpm run build
 
 # Run the 60-tool real stdio benchmark
-node dist/src/cli.js benchmark --config slimmcp.config.example.json
+pnpm run benchmark
 
 # Run unit, stdio, and Streamable-HTTP integration tests
 pnpm test
@@ -82,13 +90,16 @@ Accepts both `{ "servers": [...] }` and standard `{ "mcpServers": { ... } }`:
     {
       "id": "filesystem",
       "command": "node",
-      "args": ["/path/to/local-mcp.js"]
+      "args": ["/path/to/local-mcp.js"],
+      "envAllowlist": ["CUSTOM_SAFE_VAR"],
+      "connectTimeoutMs": 15000,
+      "requestTimeoutMs": 30000
     },
     {
       "id": "remote-docs",
       "transport": "streamable-http",
       "url": "https://mcp.example.com/mcp",
-      "headers": { "Authorization": "Bearer ${MCP_TOKEN}" }
+      "headers": { "Authorization": "Bearer YOUR_MCP_TOKEN" }
     }
   ]
 }
@@ -111,10 +122,11 @@ Accepts both `{ "servers": [...] }` and standard `{ "mcpServers": { ... } }`:
 
 ## Security & Telemetry Features (100% Free MIT)
 
-- **Secret Redaction (Default On):** Automatically masks AWS keys, GitHub tokens, Stripe keys, OpenAI tokens, Slack tokens, JWTs, and PEM private keys before responses return to the LLM.
-- **Policy-as-Code (`--policy slimmcp.policy.json`):** Enforce glob `allow`/`deny` tool rules, per-tool call budgets, and session `x402` USDC caps locally at no cost.
+- **Fail-Closed Secret Redaction (Default On):** Masks AWS keys, GitHub/GitLab/npm/HuggingFace/GCP/Stripe/OpenAI/Slack tokens, JWTs, Bearer headers, URL credentials, PEM private keys, hex keys, mnemonic seed phrases, and sensitive JSON object keys (`secret`, `token`, `password`, `apiKey`, `privateKey`, `mnemonic`, `authorization`, `cookie`, `credential`) — failing closed at `depth > 24` with `[REDACTED:MAX_DEPTH_EXCEEDED]`.
+- **Policy-as-Code (`--policy slimmcp.policy.json`):** Linear-time glob `allow`/`deny` tool rules with strict **deny-overrides** precedence, per-tool call budgets, and session `x402` USDC spend caps locally at no cost.
+- **Child Process Env Isolation & Timeouts:** `stdio` upstreams receive only a minimal safe environment allowlist (`PATH`, `HOME`, `USERPROFILE`, `SYSTEMROOT`, `COMSPEC`, `TMP`, `TEMP`, `LANG`, `NODE_ENV`) plus explicit `env`/`envAllowlist` — host CI secrets like `GITHUB_TOKEN` or `NPM_TOKEN` are never blindly inherited. Configurable `connectTimeoutMs` and `requestTimeoutMs` ensure hung upstreams fail cleanly.
 - **SQLite Telemetry (`node:sqlite`):** Inspect cumulative bytes/tokens saved and proxy latency via `node dist/src/cli.js stats --json`.
 
 ---
 
-If `slimmcp-proxy` saved your context budget, Base USDC tips are welcome at `0x32eceaC45DBED9E555dAb80346aBd4Ab9C676206`. Support: `apexhive.hq@proton.me`.
+License: [MIT](LICENSE) · Support: `apexhive.hq@proton.me`.

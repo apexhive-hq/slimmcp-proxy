@@ -7,8 +7,7 @@ startCommand:
     properties:
       configPath:
         type: string
-        description: Path to slimmcp upstream MCP servers JSON config (accepts mcpServers or servers)
-        default: cli/slimmcp.config.example.json
+        description: Absolute path to slimmcp upstream MCP servers JSON config (accepts mcpServers or servers)
       policyPath:
         type: string
         description: Optional path to slimmcp.policy.json RBAC and spend-cap policy file
@@ -16,10 +15,10 @@ startCommand:
     (config) => ({
       command: 'node',
       args: [
-        'cli/dist/src/cli.js',
+        'dist/src/cli.js',
         'serve',
         '--config',
-        config.configPath || 'cli/slimmcp.config.example.json',
+        config.configPath,
         ...(config.policyPath ? ['--policy', config.policyPath] : [])
       ]
     })

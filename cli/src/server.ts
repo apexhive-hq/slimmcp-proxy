@@ -12,6 +12,7 @@ import { redactSecrets } from './redactor.js';
 import { countUtf8Bytes, estimateTokens } from './tokenizer.js';
 import type { RawMcpTool, SlimMcpConfig } from './types.js';
 import { UpstreamManager } from './upstream.js';
+import { SLIMMCP_VERSION } from './version.js';
 
 export const META_TOOLS: RawMcpTool[] = [
   {
@@ -97,9 +98,20 @@ export interface SlimProxyRuntimeOptions {
 
 export class SlimProxyCore {
   private opts: SlimProxyRuntimeOptions;
+  private sessionBaselineCredited = false;
 
   constructor(opts: SlimProxyRuntimeOptions) {
     this.opts = opts;
+  }
+
+  private computeSessionTokensSaved(payloadTokens: number): number {
+    if (this.sessionBaselineCredited) return 0;
+    this.sessionBaselineCredited = true;
+    const rawTokens = this.opts.indexer
+      .getAllTools()
+      .reduce((sum, tool) => sum + tool.rawTokens, 0);
+    const slimTokens = estimateTokens({ tools: META_TOOLS });
+    return Math.max(0, rawTokens - slimTokens - payloadTokens);
   }
 
   async handleListTools() {
@@ -109,32 +121,47 @@ export class SlimProxyCore {
   async handleCallTool(name: string, rawArgs: unknown) {
     const start = performance.now();
     const { config, upstream, indexer, policyGuard, ledger, sessionId } = this.opts;
+    const redactionEnabled = config.redaction?.enabled ?? true;
+    const sanitizeError = (msg: string): { text: string; count: number } => {
+      if (!redactionEnabled) return { text: msg, count: 0 };
+      const res = redactSecrets(msg);
+      return { text: res.sanitized, count: res.redactionCount };
+    };
 
     if (name === 'discover_tools') {
       const parsed = DiscoverInputSchema.safeParse(rawArgs ?? {});
       if (!parsed.success) {
+        const errText = sanitizeError(`Invalid discover_tools args: ${parsed.error.message}`).text;
         return {
           isError: true,
-          content: [{ type: 'text', text: `Invalid discover_tools args: ${parsed.error.message}` }]
+          content: [{ type: 'text', text: errText }]
         };
       }
       const matches = indexer.search(parsed.data.query, {
         server: parsed.data.server,
         limit: parsed.data.limit
       });
+      const rawResponseText = JSON.stringify({
+        matches,
+        totalIndexedTools: indexer.getAllTools().length
+      });
+      const redactRes = redactionEnabled ? redactSecrets(rawResponseText) : null;
+      const responseText = redactRes ? redactRes.sanitized : rawResponseText;
       const elapsed = performance.now() - start;
+      const tokensSaved = this.computeSessionTokensSaved(estimateTokens(responseText));
       ledger.recordEvent({
         sessionId,
         kind: 'discover_tools',
-        tokensSaved: 0,
+        tokensSaved,
         status: 'allowed',
-        latencyMs: elapsed
+        latencyMs: elapsed,
+        redactionsCount: redactRes?.redactionCount ?? 0
       });
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ matches, totalIndexedTools: indexer.getAllTools().length })
+            text: responseText
           }
         ]
       };
@@ -143,11 +170,10 @@ export class SlimProxyCore {
     if (name === 'inspect_tool_schema') {
       const parsed = InspectInputSchema.safeParse(rawArgs ?? {});
       if (!parsed.success) {
+        const errText = sanitizeError(`Invalid inspect_tool_schema args: ${parsed.error.message}`).text;
         return {
           isError: true,
-          content: [
-            { type: 'text', text: `Invalid inspect_tool_schema args: ${parsed.error.message}` }
-          ]
+          content: [{ type: 'text', text: errText }]
         };
       }
       const tool = indexer.getTool(parsed.data.server, parsed.data.tool);
@@ -158,6 +184,7 @@ export class SlimProxyCore {
           kind: 'inspect_tool_schema',
           serverId: parsed.data.server,
           toolName: parsed.data.tool,
+          tokensSaved: 0,
           status: 'error',
           latencyMs: elapsed
         });
@@ -172,24 +199,30 @@ export class SlimProxyCore {
         };
       }
 
+      const rawResponseText = JSON.stringify({
+        server: tool.serverId,
+        tool: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema
+      });
+      const redactRes = redactionEnabled ? redactSecrets(rawResponseText) : null;
+      const responseText = redactRes ? redactRes.sanitized : rawResponseText;
+      const tokensSaved = this.computeSessionTokensSaved(estimateTokens(responseText));
       ledger.recordEvent({
         sessionId,
         kind: 'inspect_tool_schema',
         serverId: tool.serverId,
         toolName: tool.name,
+        tokensSaved,
         status: 'allowed',
-        latencyMs: elapsed
+        latencyMs: elapsed,
+        redactionsCount: redactRes?.redactionCount ?? 0
       });
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({
-              server: tool.serverId,
-              tool: tool.name,
-              description: tool.description,
-              inputSchema: tool.inputSchema
-            })
+            text: responseText
           }
         ]
       };
@@ -198,9 +231,10 @@ export class SlimProxyCore {
     if (name === 'invoke_tool') {
       const parsed = InvokeInputSchema.safeParse(rawArgs ?? {});
       if (!parsed.success) {
+        const errText = sanitizeError(`Invalid invoke_tool args: ${parsed.error.message}`).text;
         return {
           isError: true,
-          content: [{ type: 'text', text: `Invalid invoke_tool args: ${parsed.error.message}` }]
+          content: [{ type: 'text', text: errText }]
         };
       }
 
@@ -230,6 +264,7 @@ export class SlimProxyCore {
           kind: 'invoke_tool',
           serverId: server,
           toolName: tool,
+          tokensSaved: 0,
           status,
           latencyMs: elapsed
         });
@@ -239,7 +274,6 @@ export class SlimProxyCore {
         };
       }
 
-      const redactionEnabled = config.redaction?.enabled ?? true;
       const redactInputs = redactionEnabled && (config.redaction?.redactInputs ?? true);
       const redactOutputs = redactionEnabled && (config.redaction?.redactOutputs ?? true);
 
@@ -259,11 +293,13 @@ export class SlimProxyCore {
           redactionsCount += outRes.redactionCount;
         }
         const elapsed = performance.now() - start;
+        const tokensSaved = this.computeSessionTokensSaved(0);
         ledger.recordEvent({
           sessionId,
           kind: 'invoke_tool',
           serverId: server,
           toolName: tool,
+          tokensSaved,
           status: 'allowed',
           latencyMs: elapsed,
           redactionsCount
@@ -271,11 +307,17 @@ export class SlimProxyCore {
         return upstreamResult;
       } catch (err) {
         const elapsed = performance.now() - start;
+        const rawErr = `Upstream error calling ${server}:${tool}: ${
+          err instanceof Error ? err.message : String(err)
+        }`;
+        const sanitizedErr = sanitizeError(rawErr);
+        redactionsCount += sanitizedErr.count;
         ledger.recordEvent({
           sessionId,
           kind: 'invoke_tool',
           serverId: server,
           toolName: tool,
+          tokensSaved: 0,
           status: 'error',
           latencyMs: elapsed,
           redactionsCount
@@ -285,9 +327,7 @@ export class SlimProxyCore {
           content: [
             {
               type: 'text',
-              text: `Upstream error calling ${server}:${tool}: ${
-                err instanceof Error ? err.message : String(err)
-              }`
+              text: sanitizedErr.text
             }
           ]
         };
@@ -337,7 +377,7 @@ export async function startStdioProxyServer(
   ledger: MetricsLedger
 ): Promise<void> {
   const server = new Server(
-    { name: 'slimmcp-proxy', version: '1.0.2' },
+    { name: 'slimmcp-proxy', version: SLIMMCP_VERSION },
     { capabilities: { tools: {} } }
   );
 

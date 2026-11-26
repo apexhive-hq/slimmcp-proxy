@@ -11,6 +11,7 @@ import {
 } from './server.js';
 import { countUtf8Bytes, estimateTokens } from './tokenizer.js';
 import { UpstreamManager } from './upstream.js';
+import { SLIMMCP_VERSION } from './version.js';
 
 function resolveSlimMcpHome(): string {
   const envHome = process.env.SLIMMCP_HOME?.trim();
@@ -18,6 +19,8 @@ function resolveSlimMcpHome(): string {
   const baseHome = process.env.HOME || process.env.USERPROFILE || process.cwd();
   return join(baseHome, '.slimmcp');
 }
+
+const BOOLEAN_FLAGS = new Set(['help', 'version', 'json']);
 
 function parseFlags(argv: string[]): { cmd: string; flags: Map<string, string | boolean> } {
   const flags = new Map<string, string | boolean>();
@@ -30,14 +33,19 @@ function parseFlags(argv: string[]): { cmd: string; flags: Map<string, string | 
       if (eqIdx !== -1) {
         flags.set(arg.slice(2, eqIdx), arg.slice(eqIdx + 1));
       } else {
+        const flagName = arg.slice(2);
         const next = argv[i + 1];
-        if (next && !next.startsWith('--')) {
-          flags.set(arg.slice(2), next);
+        if (!BOOLEAN_FLAGS.has(flagName) && next && !next.startsWith('-')) {
+          flags.set(flagName, next);
           i += 1;
         } else {
-          flags.set(arg.slice(2), true);
+          flags.set(flagName, true);
         }
       }
+    } else if (arg === '-h') {
+      flags.set('help', true);
+    } else if (arg === '-v' || arg === '-V') {
+      flags.set('version', true);
     } else {
       positional.push(arg);
     }
@@ -47,7 +55,7 @@ function parseFlags(argv: string[]): { cmd: string; flags: Map<string, string | 
 }
 
 function printHelp() {
-  console.log(`slimmcp-proxy v1.0.2 — Free MIT Progressive-Disclosure Meta-MCP Proxy
+  console.log(`slimmcp-proxy v${SLIMMCP_VERSION} — Free MIT Progressive-Disclosure Meta-MCP Proxy
 
 Usage:
   slimmcp-proxy serve --config <mcp.json> [--policy <policy.json>] [--db <metrics.sqlite>] [--home <dir>]
@@ -111,12 +119,12 @@ async function runBenchmark(configPath: string, asJson: boolean) {
 
 async function main() {
   const { cmd, flags } = parseFlags(process.argv.slice(2));
-  if (flags.get('help') || flags.get('h') || cmd === 'help') {
-    printHelp();
+  if (flags.get('version') || cmd === 'version') {
+    console.log(SLIMMCP_VERSION);
     return;
   }
-  if (flags.get('version') || cmd === 'version') {
-    console.log('1.0.2');
+  if (flags.get('help') || flags.get('h') || cmd === 'help') {
+    printHelp();
     return;
   }
 
@@ -135,7 +143,7 @@ async function main() {
         {
           mode: 'open-source-mit',
           license: 'MIT',
-          version: '1.0.2',
+          version: SLIMMCP_VERSION,
           homeDir,
           features: ['stdio-upstream', 'streamable-http-upstream', 'sse-upstream', 'bm25-discovery', 'secret-redaction', 'policy-guard', 'sqlite-metrics']
         },
@@ -181,9 +189,12 @@ async function main() {
       process.exit(1);
     }
     const cfg = loadSlimMcpConfig(configPath);
-    const policyPath =
-      typeof flags.get('policy') === 'string' ? (flags.get('policy') as string) : undefined;
-    const policy = policyPath ? loadPolicyFile(policyPath) : null;
+    const policyFlag = flags.get('policy');
+    if (policyFlag !== undefined && (typeof policyFlag !== 'string' || !policyFlag.trim())) {
+      console.error('Missing <path> for --policy');
+      process.exit(1);
+    }
+    const policy = typeof policyFlag === 'string' ? loadPolicyFile(policyFlag) : null;
 
     const upstream = new UpstreamManager();
     const serverTools = await upstream.connectAll(cfg.servers);

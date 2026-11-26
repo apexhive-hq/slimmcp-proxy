@@ -1,19 +1,19 @@
 {
   "servers": [
     {
-      "id": "demo-devtools",
-      "command": "node",
-      "args": ["./dist/tests/fixtures/mock-mcp-server.js", "--server=devtools", "--count=20"]
+      "id": "filesystem",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/abs/path/to/workspace"],
+      "connectTimeoutMs": 15000,
+      "requestTimeoutMs": 30000
     },
     {
-      "id": "demo-cloud",
-      "command": "node",
-      "args": ["./dist/tests/fixtures/mock-mcp-server.js", "--server=cloud", "--count=20"]
-    },
-    {
-      "id": "demo-finance",
-      "command": "node",
-      "args": ["./dist/tests/fixtures/mock-mcp-server.js", "--server=finance", "--count=20"]
+      "id": "remote-docs",
+      "transport": "streamable-http",
+      "url": "https://mcp.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_MCP_TOKEN"
+      }
     }
   ],
   "redaction": {

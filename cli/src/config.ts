@@ -1,15 +1,33 @@
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import type { SlimMcpConfig, UpstreamServerConfig } from './types.js';
+import { validateUpstreamUrl } from './upstream.js';
 
 const ServerEndpointFields = {
   transport: z.enum(['stdio', 'streamable-http', 'sse']).optional(),
   command: z.string().min(1).optional(),
   args: z.array(z.string()).optional(),
   env: z.record(z.string()).optional(),
+  envAllowlist: z.array(z.string().min(1)).optional(),
   cwd: z.string().optional(),
-  url: z.string().url().optional(),
-  headers: z.record(z.string()).optional()
+  url: z
+    .string()
+    .url()
+    .refine(
+      (u) => {
+        try {
+          validateUpstreamUrl(u);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: 'Upstream url must use http: or https: and must not target cloud metadata endpoints.' }
+    )
+    .optional(),
+  headers: z.record(z.string()).optional(),
+  connectTimeoutMs: z.number().int().positive().optional(),
+  requestTimeoutMs: z.number().int().positive().optional()
 };
 
 function hasValidTransport(s: { command?: string; url?: string }): boolean {

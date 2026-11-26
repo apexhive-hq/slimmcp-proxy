@@ -6,7 +6,7 @@ import type { StatsSummary } from './types.js';
 export type EventStatus = 'allowed' | 'blocked_policy' | 'blocked_cap' | 'error';
 
 /**
- * Pure Node v24 built-in `node:sqlite` metrics ledger (zero native C++ addons).
+ * Pure Node.js (>=22.13 LTS) built-in `node:sqlite` metrics ledger (zero native C++ addons).
  */
 export class MetricsLedger {
   private db: DatabaseSync;

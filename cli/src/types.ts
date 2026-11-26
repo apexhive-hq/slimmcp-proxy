@@ -4,9 +4,12 @@ export interface UpstreamServerConfig {
   command?: string;
   args?: string[];
   env?: Record<string, string>;
+  envAllowlist?: string[];
   cwd?: string;
   url?: string;
   headers?: Record<string, string>;
+  connectTimeoutMs?: number;
+  requestTimeoutMs?: number;
 }
 
 export interface SlimMcpConfig {
