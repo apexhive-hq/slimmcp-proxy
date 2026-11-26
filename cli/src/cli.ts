@@ -3,11 +3,6 @@ import { join } from 'node:path';
 import { loadSlimMcpConfig } from './config.js';
 import { ToolIndexer } from './indexer.js';
 import { MetricsLedger } from './ledger.js';
-import {
-  loadActivatedLicense,
-  resolveSlimMcpHome,
-  saveActivatedLicense
-} from './license.js';
 import { loadPolicyFile, PolicyGuard } from './policy.js';
 import {
   computeSchemaSavings,
@@ -16,6 +11,13 @@ import {
 } from './server.js';
 import { countUtf8Bytes, estimateTokens } from './tokenizer.js';
 import { UpstreamManager } from './upstream.js';
+
+function resolveSlimMcpHome(): string {
+  const envHome = process.env.SLIMMCP_HOME?.trim();
+  if (envHome) return envHome;
+  const baseHome = process.env.HOME || process.env.USERPROFILE || process.cwd();
+  return join(baseHome, '.slimmcp');
+}
 
 function parseFlags(argv: string[]): { cmd: string; flags: Map<string, string | boolean> } {
   const flags = new Map<string, string | boolean>();
@@ -45,14 +47,13 @@ function parseFlags(argv: string[]): { cmd: string; flags: Map<string, string | 
 }
 
 function printHelp() {
-  console.log(`ApexHive Labs — slimmcp-proxy v1.0.0
+  console.log(`slimmcp-proxy v1.0.2 — Free MIT Progressive-Disclosure Meta-MCP Proxy
 
 Usage:
   slimmcp-proxy serve --config <mcp.json> [--policy <policy.json>] [--db <metrics.sqlite>] [--home <dir>]
   slimmcp-proxy benchmark --config <mcp.json> [--json]
-  slimmcp-proxy activate --token <APEXHIVE-PRO-v1...> [--home <dir>] [--pubkey <spki-b64>]
-  slimmcp-proxy status [--home <dir>] [--pubkey <spki-b64>]
   slimmcp-proxy stats [--db <metrics.sqlite>] [--home <dir>] [--json]
+  slimmcp-proxy status
 `);
 }
 
@@ -66,7 +67,6 @@ async function runBenchmark(configPath: string, asJson: boolean) {
     indexer.rebuild(serverTools);
     const savings = computeSchemaSavings(serverTools);
 
-    // Measure realistic 1-turn progressive lookup cost (discover_tools + inspect_tool_schema)
     const sampleMatches = indexer.search('list', { limit: 5 });
     const discoverBytes = countUtf8Bytes(sampleMatches);
     const discoverTokens = estimateTokens(sampleMatches);
@@ -90,17 +90,14 @@ async function runBenchmark(configPath: string, asJson: boolean) {
     if (asJson) {
       console.log(JSON.stringify(report, null, 2));
     } else {
-      console.log(`=== ApexHive Labs slimmcp-proxy Benchmark ===`);
+      console.log(`=== slimmcp-proxy Benchmark (MIT) ===`);
       console.log(`Servers connected:     ${report.serversConnected}`);
       console.log(`Upstream tools count:  ${report.rawToolsCount}`);
       console.log(
         `Raw tools/list:        ${report.rawSchemaBytes} bytes (~${report.rawSchemaTokens} tokens)`
       );
       console.log(
-        `Slim proxy tools/list: ${report.slimExposedBytes} bytes (~${report.slimExposedTokens} tokens)`
-      );
-      console.log(
-        `Context Tax Saved:     ${report.tokensSaved} tokens (${report.reductionPercent}% initial reduction)`
+        `Slim proxy tools/list: ${report.slimExposedBytes} bytes (~${report.slimExposedTokens} tokens, ${report.reductionPercent}% initial reduction)`
       );
       console.log(
         `1-Turn Lookup Cost:    ~${report.sampleTurnOverheadTokens} tokens (meta-tools + 5 matches + 1 schema)`
@@ -114,12 +111,12 @@ async function runBenchmark(configPath: string, asJson: boolean) {
 
 async function main() {
   const { cmd, flags } = parseFlags(process.argv.slice(2));
-  if (flags.get('help') || cmd === 'help') {
+  if (flags.get('help') || flags.get('h') || cmd === 'help') {
     printHelp();
     return;
   }
   if (flags.get('version') || cmd === 'version') {
-    console.log('1.0.0');
+    console.log('1.0.2');
     return;
   }
 
@@ -127,40 +124,25 @@ async function main() {
     typeof flags.get('home') === 'string'
       ? (flags.get('home') as string)
       : resolveSlimMcpHome();
-  const pubKey =
-    typeof flags.get('pubkey') === 'string' ? (flags.get('pubkey') as string) : undefined;
   const dbPath =
     typeof flags.get('db') === 'string'
       ? (flags.get('db') as string)
       : join(homeDir, 'metrics.sqlite');
 
-  if (cmd === 'activate') {
-    const token = flags.get('token');
-    if (typeof token !== 'string' || !token) {
-      console.error('Missing --token <APEXHIVE-PRO-v1...>');
-      process.exit(1);
-    }
-    const res = saveActivatedLicense(token, { homeDir, publicKeySpkiB64: pubKey });
+  if (cmd === 'status') {
     console.log(
       JSON.stringify(
         {
-          activated: true,
-          filePath: res.filePath,
-          tier: res.verification.payload?.tier,
-          payer: res.verification.payload?.payer,
-          txHash: res.verification.payload?.txHash
+          mode: 'open-source-mit',
+          license: 'MIT',
+          version: '1.0.2',
+          homeDir,
+          features: ['stdio-upstream', 'streamable-http-upstream', 'sse-upstream', 'bm25-discovery', 'secret-redaction', 'policy-guard', 'sqlite-metrics']
         },
         null,
         2
       )
     );
-    return;
-  }
-
-  if (cmd === 'status') {
-    const res = loadActivatedLicense({ homeDir, publicKeySpkiB64: pubKey });
-    console.log(JSON.stringify({ homeDir, ...res }, null, 2));
-    if (!res.valid) process.exit(1);
     return;
   }
 
@@ -202,7 +184,6 @@ async function main() {
     const policyPath =
       typeof flags.get('policy') === 'string' ? (flags.get('policy') as string) : undefined;
     const policy = policyPath ? loadPolicyFile(policyPath) : null;
-    const license = loadActivatedLicense({ homeDir, publicKeySpkiB64: pubKey });
 
     const upstream = new UpstreamManager();
     const serverTools = await upstream.connectAll(cfg.servers);
@@ -219,7 +200,7 @@ async function main() {
       slimExposedTokens: savings.slimExposedTokens
     });
 
-    const policyGuard = new PolicyGuard(policy, license.valid);
+    const policyGuard = new PolicyGuard(policy);
     const core = new SlimProxyCore({
       config: cfg,
       upstream,

@@ -1,47 +1,27 @@
 import assert from 'node:assert/strict';
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { execFileSync, spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import {
   computeSchemaSavings,
-  loadActivatedLicense,
   MetricsLedger,
   PolicyGuard,
   redactSecrets,
-  saveActivatedLicense,
   SlimProxyCore,
   ToolIndexer,
-  UpstreamManager,
-  verifyProLicenseToken
+  UpstreamManager
 } from '../src/index.js';
 
-function createEphemeralTestLicense(tier: 'indie' | 'team' = 'indie', expiresAt: number | null = null) {
-  const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-  const publicKeySpkiB64 = (
-    publicKey.export({ type: 'spki', format: 'der' }) as Buffer
-  ).toString('base64');
-
-  const payload = {
-    v: 1 as const,
-    product: 'slimmcp-proxy' as const,
-    tier,
-    payer: '0x1111111111111111111111111111111111111111',
-    txHash: '0x' + 'ab'.repeat(32),
-    issuedAt: Date.now(),
-    expiresAt
-  };
-  const payloadB64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
-  const prefix = 'APEXHIVE-PRO-v1.';
-  const sig = sign(null, Buffer.from(`${prefix}${payloadB64}`, 'utf8'), privateKey).toString(
-    'base64url'
-  );
-  return { token: `${prefix}${payloadB64}.${sig}`, publicKeySpkiB64, payload };
-}
-
-test('real stdio MCP proxy achieves >=85% context reduction and full progressive tool execution', async () => {
+test('1. real stdio MCP proxy achieves >=85% context reduction and full progressive tool execution', async () => {
   const fixturePath = resolve(process.cwd(), 'dist/tests/fixtures/mock-mcp-server.js');
   const upstream = new UpstreamManager();
   const ledger = new MetricsLedger(':memory:');
@@ -68,19 +48,17 @@ test('real stdio MCP proxy achieves >=85% context reduction and full progressive
       config: { servers: [], redaction: { enabled: true, redactInputs: true, redactOutputs: true } },
       upstream,
       indexer,
-      policyGuard: new PolicyGuard(null, false),
+      policyGuard: new PolicyGuard(null),
       ledger,
       sessionId
     });
 
-    // 1. List tools exposes only 3 meta-tools
     const listRes = await core.handleListTools();
     assert.deepEqual(
       listRes.tools.map((t) => t.name),
       ['discover_tools', 'inspect_tool_schema', 'invoke_tool']
     );
 
-    // 2. Discover tools via BM25
     const discRes = await core.handleCallTool('discover_tools', {
       query: 'search cloud',
       server: 'cloud',
@@ -92,7 +70,6 @@ test('real stdio MCP proxy achieves >=85% context reduction and full progressive
     assert.equal(discParsed.matches[0].server, 'cloud');
     assert.ok(discParsed.matches[0].tool.includes('search_cloud_resource'));
 
-    // 3. Inspect single tool schema
     const targetTool = discParsed.matches[0].tool as string;
     const inspRes = await core.handleCallTool('inspect_tool_schema', {
       server: 'cloud',
@@ -103,7 +80,6 @@ test('real stdio MCP proxy achieves >=85% context reduction and full progressive
     assert.equal(inspParsed.tool, targetTool);
     assert.ok(inspParsed.inputSchema.properties.targetId);
 
-    // 4. Invoke upstream tool with secret in input & simulated secret in output -> both redacted
     const invRes = await core.handleCallTool('invoke_tool', {
       server: 'cloud',
       tool: targetTool,
@@ -131,7 +107,7 @@ test('real stdio MCP proxy achieves >=85% context reduction and full progressive
   }
 });
 
-test('secret redactor masks AWS, GitHub, Stripe, OpenAI, Slack, JWT, and PEM secrets', () => {
+test('2. secret redactor masks AWS, GitHub, Stripe, OpenAI, Slack, JWT, and PEM secrets', () => {
   const sample = {
     aws: 'AKIAIOSFODNN7EXAMPLE',
     gh: 'github_pat_11AAAAAA00000000000000_abcdefghijklmnopqrstuvwxyz123456',
@@ -150,45 +126,7 @@ test('secret redactor masks AWS, GitHub, Stripe, OpenAI, Slack, JWT, and PEM sec
   assert.equal(res.sanitized.pem, '[REDACTED:PRIVATE_KEY]');
 });
 
-test('Ed25519 Pro license verification handles valid, tampered, expired, and disk persistence', () => {
-  const { token, publicKeySpkiB64 } = createEphemeralTestLicense('indie');
-  const ok = verifyProLicenseToken(token, { publicKeySpkiB64 });
-  assert.equal(ok.valid, true);
-  assert.equal(ok.payload?.tier, 'indie');
-
-  // Tamper payload
-  const parts = token.split('.');
-  const fakePayload = Buffer.from(JSON.stringify({ v: 1, product: 'slimmcp-proxy', tier: 'team' })).toString('base64url');
-  const tampered = `${parts[0]}.${fakePayload}.${parts[2]}`;
-  assert.equal(verifyProLicenseToken(tampered, { publicKeySpkiB64 }).valid, false);
-
-  // Wrong key
-  const other = createEphemeralTestLicense('team');
-  assert.equal(
-    verifyProLicenseToken(token, { publicKeySpkiB64: other.publicKeySpkiB64 }).valid,
-    false
-  );
-
-  // Expired token
-  const expired = createEphemeralTestLicense('indie', Date.now() - 1000);
-  assert.equal(
-    verifyProLicenseToken(expired.token, { publicKeySpkiB64: expired.publicKeySpkiB64 }).valid,
-    false
-  );
-
-  // Save & load in isolated HQ sandbox dir
-  const tempHome = mkdtempSync(join(process.cwd(), '.tmp-home-'));
-  try {
-    saveActivatedLicense(token, { homeDir: tempHome, publicKeySpkiB64 });
-    const loaded = loadActivatedLicense({ homeDir: tempHome, publicKeySpkiB64 });
-    assert.equal(loaded.valid, true);
-    assert.equal(loaded.payload?.tier, 'indie');
-  } finally {
-    rmSync(tempHome, { recursive: true, force: true });
-  }
-});
-
-test('Pro PolicyGuard enforces license gate, RBAC deny rules, per-tool cap, and x402 spend cap', () => {
+test('3. MIT PolicyGuard enforces RBAC deny rules, per-tool cap, and x402 spend cap with zero license gates', () => {
   const policy = {
     defaultAction: 'allow' as const,
     sessionLimits: {
@@ -206,34 +144,125 @@ test('Pro PolicyGuard enforces license gate, RBAC deny rules, per-tool cap, and 
     ]
   };
 
-  // Unlicensed blocks policy usage
-  const freeGuard = new PolicyGuard(policy, false);
-  const freeRes = freeGuard.evaluate('cloud', 'list_cloud_resource_1');
-  assert.equal(freeRes.allowed, false);
-  assert.equal(freeRes.code, 'PRO_LICENSE_REQUIRED');
-
-  // Licensed enforces RBAC + caps
-  const proGuard = new PolicyGuard(policy, true);
-  assert.equal(proGuard.evaluate('cloud', 'delete_cloud_resource_6').code, 'DENIED_BY_POLICY');
-  assert.equal(proGuard.evaluate('finance', 'pay_x402_finance_resource_10').allowed, true);
-  assert.equal(proGuard.evaluate('finance', 'pay_x402_finance_resource_10').allowed, true);
+  const guard = new PolicyGuard(policy);
+  assert.equal(guard.evaluate('cloud', 'delete_cloud_resource_6').code, 'DENIED_BY_POLICY');
+  assert.equal(guard.evaluate('finance', 'pay_x402_finance_resource_10').allowed, true);
+  assert.equal(guard.evaluate('finance', 'pay_x402_finance_resource_10').allowed, true);
   // 3rd call hits 30000 > 20000 atomic USDC cap
-  const capRes = proGuard.evaluate('finance', 'pay_x402_finance_resource_10');
+  const capRes = guard.evaluate('finance', 'pay_x402_finance_resource_10');
   assert.equal(capRes.allowed, false);
   assert.equal(capRes.code, 'X402_BUDGET_CAP');
 });
 
-test('CLI serve binary works over full MCP stdio transport end-to-end', async () => {
+test('4. Streamable-HTTP upstream MCP server connects cleanly and proxies discover/inspect/invoke', async () => {
+  const mcpServer = new Server(
+    { name: 'mock-http-mcp', version: '1.0.0' },
+    { capabilities: { tools: {} } }
+  );
+  mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [
+      {
+        name: 'fetch_http_quote',
+        description: 'Fetch a simulated remote quote over Streamable-HTTP MCP transport.',
+        inputSchema: {
+          type: 'object',
+          properties: { ticker: { type: 'string' } },
+          required: ['ticker']
+        }
+      }
+    ]
+  }));
+  mcpServer.setRequestHandler(CallToolRequestSchema, async (req) => ({
+    content: [{ type: 'text', text: `quote:${String((req.params.arguments as { ticker?: string })?.ticker || '')}` }]
+  }));
+
+  const serverTransport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => randomUUID()
+  });
+  await mcpServer.connect(serverTransport);
+
+  let seenAuthHeader = '';
+  const httpServer = http.createServer(async (req, res) => {
+    seenAuthHeader = String(req.headers['x-test-auth'] || '');
+    let parsedBody: unknown;
+    if (req.method === 'POST') {
+      const chunks: Buffer[] = [];
+      for await (const c of req) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c));
+      const text = Buffer.concat(chunks).toString('utf8');
+      parsedBody = text ? JSON.parse(text) : undefined;
+    }
+    await serverTransport.handleRequest(req, res, parsedBody);
+  });
+
+  await new Promise<void>((resolveListen) => httpServer.listen(0, '127.0.0.1', () => resolveListen()));
+  const addr = httpServer.address() as AddressInfo;
+  const endpointUrl = `http://127.0.0.1:${addr.port}/mcp`;
+
+  const upstream = new UpstreamManager();
+  const ledger = new MetricsLedger(':memory:');
+
+  try {
+    const serverTools = await upstream.connectAll([
+      {
+        id: 'remote-http',
+        transport: 'streamable-http',
+        url: endpointUrl,
+        headers: { 'x-test-auth': 'slimmcp-ok' }
+      }
+    ]);
+    assert.equal(serverTools.length, 1);
+    assert.equal(serverTools[0].tools[0].name, 'fetch_http_quote');
+    assert.equal(seenAuthHeader, 'slimmcp-ok');
+
+    const indexer = new ToolIndexer();
+    indexer.rebuild(serverTools);
+    const sessionId = ledger.startSession(computeSchemaSavings(serverTools));
+    const core = new SlimProxyCore({
+      config: { servers: [] },
+      upstream,
+      indexer,
+      policyGuard: new PolicyGuard(null),
+      ledger,
+      sessionId
+    });
+
+    const disc = await core.handleCallTool('discover_tools', { query: 'quote' });
+    assert.ok(!disc.isError);
+    assert.ok(String(disc.content[0].text).includes('fetch_http_quote'));
+
+    const inv = await core.handleCallTool('invoke_tool', {
+      server: 'remote-http',
+      tool: 'fetch_http_quote',
+      arguments: { ticker: 'ESZ26' }
+    });
+    assert.ok(!inv.isError);
+    assert.equal(String(inv.content[0].text), 'quote:ESZ26');
+  } finally {
+    await upstream.closeAll();
+    await serverTransport.close().catch(() => {});
+    httpServer.close();
+    ledger.close();
+  }
+});
+
+test('5. CLI --help, status, and serve binary work end-to-end under MIT', async () => {
   const cliBin = resolve(process.cwd(), 'dist/src/cli.js');
   const configPath = resolve(process.cwd(), 'slimmcp.config.example.json');
   const tempHome = mkdtempSync(join(process.cwd(), '.tmp-e2e-'));
+
+  const helpOut = execFileSync(process.execPath, [cliBin, '--help'], { encoding: 'utf8' });
+  assert.ok(helpOut.includes('slimmcp-proxy serve'));
+
+  const statusOut = JSON.parse(execFileSync(process.execPath, [cliBin, 'status', '--home', tempHome], { encoding: 'utf8' }));
+  assert.equal(statusOut.mode, 'open-source-mit');
+  assert.equal(statusOut.license, 'MIT');
 
   const transport = new StdioClientTransport({
     command: 'node',
     args: [cliBin, 'serve', '--config', configPath, '--home', tempHome],
     stderr: 'pipe'
   });
-  const client = new Client({ name: 'qa-test-client', version: '1.0.0' }, { capabilities: {} });
+  const client = new Client({ name: 'qa-test-client', version: '1.0.2' }, { capabilities: {} });
 
   try {
     await client.connect(transport);

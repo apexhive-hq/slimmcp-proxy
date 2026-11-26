@@ -1,9 +1,12 @@
 export interface UpstreamServerConfig {
   id: string;
-  command: string;
+  transport?: 'stdio' | 'streamable-http' | 'sse';
+  command?: string;
   args?: string[];
   env?: Record<string, string>;
   cwd?: string;
+  url?: string;
+  headers?: Record<string, string>;
 }
 
 export interface SlimMcpConfig {
@@ -57,22 +60,6 @@ export interface PolicyConfig {
     maxX402AtomicUsdcPerSession?: number;
   };
   rules?: PolicyRule[];
-}
-
-export interface ProLicensePayload {
-  v: 1;
-  product: 'slimmcp-proxy';
-  tier: 'indie' | 'team';
-  payer: string;
-  txHash: string;
-  issuedAt: number;
-  expiresAt: number | null;
-}
-
-export interface LicenseVerificationResult {
-  valid: boolean;
-  reason?: string;
-  payload?: ProLicensePayload;
 }
 
 export interface RedactionResult<T = unknown> {

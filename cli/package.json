@@ -1,14 +1,14 @@
 {
   "name": "slimmcp-proxy",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "mcpName": "io.github.apexhive-hq/slimmcp-proxy",
-  "description": "Progressive-disclosure Meta-MCP proxy reducing MCP tool-schema context bloat by 85-95%, with local secret redaction and Pro Base-USDC guardrails.",
+  "description": "Free MIT progressive-disclosure Meta-MCP proxy supporting stdio, Streamable-HTTP, and SSE upstreams with BM25 discovery, secret redaction, and RBAC policy guardrails.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/apexhive-hq/slimmcp-proxy.git"
   },
-  "homepage": "https://slimmcp-proxy-store.apexhive-hq.workers.dev",
+  "homepage": "https://github.com/apexhive-hq/slimmcp-proxy",
   "type": "module",
   "bin": {
     "slimmcp-proxy": "dist/src/cli.js"
@@ -35,7 +35,7 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
-    "@types/node": "^22.15.0",
+    "@types/node": "^24.0.0",
     "typescript": "^5.8.3"
   }
 }

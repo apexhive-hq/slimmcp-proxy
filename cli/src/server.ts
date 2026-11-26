@@ -53,7 +53,7 @@ export const META_TOOLS: RawMcpTool[] = [
   {
     name: 'invoke_tool',
     description:
-      'Execute a specific upstream MCP tool with secret redaction and Pro policy/spend-cap enforcement.',
+      'Execute a specific upstream MCP tool with secret redaction and local RBAC policy/spend-cap enforcement.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -222,7 +222,7 @@ export class SlimProxyCore {
       if (!decision.allowed) {
         const elapsed = performance.now() - start;
         const status =
-          decision.code === 'DENIED_BY_POLICY' || decision.code === 'PRO_LICENSE_REQUIRED'
+          decision.code === 'DENIED_BY_POLICY'
             ? 'blocked_policy'
             : 'blocked_cap';
         ledger.recordEvent({
@@ -337,7 +337,7 @@ export async function startStdioProxyServer(
   ledger: MetricsLedger
 ): Promise<void> {
   const server = new Server(
-    { name: 'slimmcp-proxy', version: '1.0.0' },
+    { name: 'slimmcp-proxy', version: '1.0.2' },
     { capabilities: { tools: {} } }
   );
 

@@ -34,23 +34,21 @@ function globMatch(pattern: string, target: string): boolean {
 
 export interface PolicyDecision {
   allowed: boolean;
-  code: 'ALLOWED' | 'PRO_LICENSE_REQUIRED' | 'DENIED_BY_POLICY' | 'SESSION_CALL_CAP' | 'TOOL_CALL_CAP' | 'X402_BUDGET_CAP';
+  code: 'ALLOWED' | 'DENIED_BY_POLICY' | 'SESSION_CALL_CAP' | 'TOOL_CALL_CAP' | 'X402_BUDGET_CAP';
   reason?: string;
 }
 
 /**
- * Enforces Pro-tier RBAC rules and per-session call / x402 USDC spend caps.
+ * Enforces MIT-free RBAC rules and per-session call / x402 USDC spend caps.
  */
 export class PolicyGuard {
   private policy: PolicyConfig | null;
-  private isProActive: boolean;
   private sessionCalls = 0;
   private sessionX402AtomicUsdc = 0;
   private toolCalls = new Map<string, number>();
 
-  constructor(policy: PolicyConfig | null, isProActive: boolean) {
+  constructor(policy: PolicyConfig | null) {
     this.policy = policy;
-    this.isProActive = isProActive;
   }
 
   getRemainingState() {
@@ -63,15 +61,6 @@ export class PolicyGuard {
   evaluate(serverId: string, toolName: string): PolicyDecision {
     if (!this.policy) {
       return { allowed: true, code: 'ALLOWED' };
-    }
-
-    if (!this.isProActive) {
-      return {
-        allowed: false,
-        code: 'PRO_LICENSE_REQUIRED',
-        reason:
-          'Custom slimmcp.policy.json RBAC & spend-cap rules require an active ApexHive Labs Pro license (5 USDC Founding Batch on Base). Run `node dist/src/cli.js activate --token <TOKEN>` or remove --policy for Free Open-Core mode.'
-      };
     }
 
     const fullKey = `${serverId}:${toolName}`;

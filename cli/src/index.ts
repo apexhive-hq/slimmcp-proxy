@@ -3,7 +3,6 @@ export * from './config.js';
 export * from './tokenizer.js';
 export * from './indexer.js';
 export * from './redactor.js';
-export * from './license.js';
 export * from './policy.js';
 export * from './ledger.js';
 export * from './upstream.js';
