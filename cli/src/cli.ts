@@ -55,7 +55,7 @@ function parseFlags(argv: string[]): { cmd: string; flags: Map<string, string | 
 }
 
 function printHelp() {
-  console.log(`slimmcp-proxy v${SLIMMCP_VERSION} — Free MIT Progressive-Disclosure Meta-MCP Proxy
+  console.log(`slimmcp-proxy v${SLIMMCP_VERSION} — Progressive-Disclosure Meta-MCP Proxy (MIT)
 
 Usage:
   slimmcp-proxy serve --config <mcp.json> [--policy <policy.json>] [--db <metrics.sqlite>] [--home <dir>]

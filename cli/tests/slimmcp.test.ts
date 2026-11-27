@@ -266,9 +266,9 @@ test('5. CLI --help, status, and serve binary work end-to-end under MIT', async 
   const shortHelpOut = execFileSync(process.execPath, [cliBin, '-h'], { encoding: 'utf8' });
   assert.ok(shortHelpOut.includes('slimmcp-proxy serve'));
   const shortVerOut = execFileSync(process.execPath, [cliBin, '-v'], { encoding: 'utf8' }).trim();
-  assert.equal(shortVerOut, '1.0.2');
+  assert.equal(shortVerOut, '1.0.3');
   const longVerOut = execFileSync(process.execPath, [cliBin, '--version'], { encoding: 'utf8' }).trim();
-  assert.equal(longVerOut, '1.0.2');
+  assert.equal(longVerOut, '1.0.3');
 
   const statusOut = JSON.parse(execFileSync(process.execPath, [cliBin, 'status', '--home', tempHome], { encoding: 'utf8' }));
   assert.equal(statusOut.mode, 'open-source-mit');
@@ -279,7 +279,7 @@ test('5. CLI --help, status, and serve binary work end-to-end under MIT', async 
     args: [cliBin, 'serve', '--config', configPath, '--home', tempHome],
     stderr: 'pipe'
   });
-  const client = new Client({ name: 'qa-test-client', version: '1.0.2' }, { capabilities: {} });
+  const client = new Client({ name: 'qa-test-client', version: '1.0.3' }, { capabilities: {} });
 
   try {
     await client.connect(transport);

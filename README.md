@@ -1,9 +1,13 @@
-# `slimmcp-proxy` (`v1.0.2`) — Progressive-Disclosure Meta-MCP Proxy
+# `slimmcp-proxy` (`v1.0.3`) — Progressive-Disclosure Meta-MCP Proxy
 
 [![slimmcp-proxy MCP server](https://glama.ai/mcp/servers/apexhive-hq/slimmcp-proxy/badge)](https://glama.ai/mcp/servers/apexhive-hq/slimmcp-proxy)
 
-> **100% Free & Open Source (MIT)** Meta-MCP proxy (`Node.js >= 22.13.0` — Node 22 LTS & Node 24 LTS) that replaces bloated upstream `tools/list` definitions with **3 lightweight meta-tools** (`97.86%` initial schema reduction: `60,185 -> 1,286` bytes / `15,047 -> 322` tokens across 60 tools; **`95.10%` net 1-turn savings** including `discover_tools` + `inspect_tool_schema`), supporting **`stdio`**, **Streamable-HTTP**, and **SSE** upstreams with fail-closed secret redaction, strict deny-overrides RBAC policy guardrails, and isolated child process environments.
+> Stop AI agents from burning context tokens loading dozens of unused MCP tool schemas. `slimmcp-proxy` sits in front of your `stdio`, Streamable-HTTP, and SSE MCP servers and exposes just **3 lightweight meta-tools** for BM25 tool discovery, lazy single-tool schema inspection, fail-closed secret redaction, and local RBAC policy enforcement.
 
+- **Key Capabilities:**
+  - **Progressive Tool Disclosure:** Exposes `discover_tools`, `inspect_tool_schema`, and `invoke_tool` instead of dumping every upstream tool definition upfront (`97.86%` initial schema reduction across 60 tools; `95.10%` net 1-turn savings).
+  - **Multi-Transport Upstreams:** Proxies local `stdio` servers (with strict minimal environment isolation) and remote Streamable-HTTP / SSE servers (with metadata/SSRF and redirect guards).
+  - **Security & Guardrails:** Fail-closed secret redaction (`depth <= 24`, keys + values), linear-time deny-overrides RBAC rules, per-tool call budgets, and built-in `node:sqlite` metrics (`Node.js >= 22.13.0`).
 - **Official MCP Registry:** `io.github.apexhive-hq/slimmcp-proxy`
 - **Glama MCP Directory:** https://glama.ai/mcp/servers/apexhive-hq/slimmcp-proxy
 
@@ -19,7 +23,7 @@
                                   |  stdio (JSON-RPC 2.0)
                                   v
 +-------------------------------------------------------------------+
-|  slimmcp-proxy v1.0.2 (cli/src/server.ts & upstream.ts)           |
+|  slimmcp-proxy v1.0.3 (cli/src/server.ts & upstream.ts)           |
 |  1. discover_tools(query, server?, limit?) -> Pure-TS BM25 index  |
 |  2. inspect_tool_schema(server, tool)      -> Lazy 1-tool schema  |
 |  3. invoke_tool(server, tool, arguments)   -> Redactor + Policy   |
@@ -120,10 +124,10 @@ Accepts both `{ "servers": [...] }` and standard `{ "mcpServers": { ... } }`:
 
 ---
 
-## Security & Telemetry Features (100% Free MIT)
+## Security & Telemetry Features
 
 - **Fail-Closed Secret Redaction (Default On):** Masks AWS keys, GitHub/GitLab/npm/HuggingFace/GCP/Stripe/OpenAI/Slack tokens, JWTs, Bearer headers, URL credentials, PEM private keys, hex keys, mnemonic seed phrases, and sensitive JSON object keys (`secret`, `token`, `password`, `apiKey`, `privateKey`, `mnemonic`, `authorization`, `cookie`, `credential`) — failing closed at `depth > 24` with `[REDACTED:MAX_DEPTH_EXCEEDED]`.
-- **Policy-as-Code (`--policy slimmcp.policy.json`):** Linear-time glob `allow`/`deny` tool rules with strict **deny-overrides** precedence, per-tool call budgets, and session `x402` USDC spend caps locally at no cost.
+- **Policy-as-Code (`--policy slimmcp.policy.json`):** Linear-time glob `allow`/`deny` tool rules with strict **deny-overrides** precedence, per-tool call budgets, and session `x402` USDC spend caps enforced locally.
 - **Child Process Env Isolation & Timeouts:** `stdio` upstreams receive only a minimal safe environment allowlist (`PATH`, `HOME`, `USERPROFILE`, `SYSTEMROOT`, `COMSPEC`, `TMP`, `TEMP`, `LANG`, `NODE_ENV`) plus explicit `env`/`envAllowlist` — host CI secrets like `GITHUB_TOKEN` or `NPM_TOKEN` are never blindly inherited. Configurable `connectTimeoutMs` and `requestTimeoutMs` ensure hung upstreams fail cleanly.
 - **SQLite Telemetry (`node:sqlite`):** Inspect cumulative bytes/tokens saved and proxy latency via `node dist/src/cli.js stats --json`.
 

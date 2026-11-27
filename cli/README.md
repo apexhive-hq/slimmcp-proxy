@@ -1,6 +1,8 @@
-# `slimmcp-proxy` CLI (`v1.0.2`)
+# `slimmcp-proxy` CLI (`v1.0.3`)
 
-> **100% Free MIT Meta-MCP Proxy (`Node.js >= 22.13.0`, Node 22/24 LTS)**: reduces initial `tools/list` schemas by `97.86%` (`60,185 -> 1,286` bytes / `15,047 -> 322` tokens across 60 tools) and **net 1-turn lookup overhead by `95.10%` (`~15,047 -> ~737` tokens)** across both `stdio` and remote **Streamable-HTTP / SSE** upstream MCP servers.
+> Stop AI agents from burning context tokens loading dozens of unused MCP tool schemas. `slimmcp-proxy` exposes 3 lightweight meta-tools for BM25 discovery, lazy schema lookup, secret redaction, and RBAC across `stdio` and remote Streamable-HTTP / SSE upstream MCP servers (`Node.js >= 22.13.0`, Node 22/24 LTS).
+>
+> Benchmark (60 tools): `97.86%` initial `tools/list` schema reduction (`60,185 -> 1,286` bytes / `15,047 -> 322` tokens) and `95.10%` net 1-turn savings (`~15,047 -> ~737` tokens).
 
 ---
 
@@ -24,7 +26,7 @@ pnpm run build
 # Measure initial & 1-turn context savings on the 60-tool real stdio fixture
 pnpm run benchmark
 
-# Serve over stdio with optional free MIT RBAC & spend-cap guardrails
+# Serve over stdio with optional RBAC & spend-cap guardrails
 node dist/src/cli.js serve --config slimmcp.benchmark.config.json --policy slimmcp.policy.example.json
 ```
 

@@ -17,7 +17,7 @@ function resolvePackageVersion(): string {
       // Try next candidate
     }
   }
-  return '1.0.2';
+  return '1.0.3';
 }
 
 export const SLIMMCP_VERSION = resolvePackageVersion();

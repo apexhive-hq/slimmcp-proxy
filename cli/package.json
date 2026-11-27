@@ -1,8 +1,8 @@
 {
   "name": "slimmcp-proxy",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "mcpName": "io.github.apexhive-hq/slimmcp-proxy",
-  "description": "Free MIT progressive-disclosure Meta-MCP proxy supporting stdio, Streamable-HTTP, and SSE upstreams with BM25 discovery, secret redaction, and RBAC policy guardrails.",
+  "description": "Progressive-disclosure Meta-MCP proxy (MIT) supporting stdio, Streamable-HTTP, and SSE upstreams with BM25 discovery, secret redaction, and RBAC policy guardrails.",
   "license": "MIT",
   "repository": {
     "type": "git",
