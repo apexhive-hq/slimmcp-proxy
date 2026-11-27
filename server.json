@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.apexhive-hq/slimmcp-proxy",
   "title": "slimmcp-proxy",
-  "description": "Progressive-disclosure Meta-MCP proxy for stdio and HTTP/SSE upstreams with BM25 discovery and secret redaction.",
+  "description": "Meta-MCP proxy for stdio and HTTP/SSE upstreams with BM25 discovery and secret redaction.",
   "repository": {
     "url": "https://github.com/apexhive-hq/slimmcp-proxy",
     "source": "github"
